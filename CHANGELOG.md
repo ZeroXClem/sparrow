@@ -1,5 +1,57 @@
 # ChangeLog
 
+## [v0.1.6] - 2024-04-17
+
+### New Features
+
+- New agents with Unstructured
+
+### What's Changed
+
+- Added unstructured-light and unstructured agents for better data pre-processing
+
+
+
+
+## [v0.1.5] - 2024-03-27
+
+### New Features
+
+- Virtual Environments support
+
+### What's Changed
+
+- Fixes in LlamaIndex agent to run with latest LlamaIndex versions
+- LLM function calling agent
+
+
+
+
+## [v0.1.4] - 2024-03-07
+
+### New Features
+
+- OCR + LLM support, new vprocessor agent
+
+### What's Changed
+
+- Improved FastAPI endpoints
+
+
+
+
+## [v0.1.3] - 2024-02-11
+
+### New Features
+
+- Added Haystack agent for structured data
+
+### What's Changed
+
+- Changed plugins to agents
+
+  
+
 ## [v0.1.2] - 2024-01-31
 
 ### New Features

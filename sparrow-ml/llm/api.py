@@ -1,11 +1,12 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from engine import run_from_api
+from engine import run_from_api_engine
+from ingest import run_from_api_ingest
 import uvicorn
 import warnings
 from typing import Annotated
 import json
+import argparse
 
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -24,49 +25,61 @@ app.add_middleware(
 )
 
 
-class Query(BaseModel):
-    fields: str
-    types: str
-    plugin: str = "LlamaIndex"
-
-
 @app.get("/")
 def root():
     return {"message": "Sparrow LLM API"}
 
 
 @app.post("/api/v1/sparrow-llm/inference", tags=["LLM Inference"])
-def inference(
-        q: Annotated[
-            Query,
-            Body(
-                examples=[
-                    {
-                        "fields": "invoice_number",
-                        "types": "int",
-                        "plugin": "LlamaIndex"
-                    }
-                ]
-            )
-        ]):
-    query = 'retrieve ' + q.fields
-    query_types = q.types
+async def inference(
+        fields: Annotated[str, Form()],
+        types: Annotated[str, Form()],
+        agent: Annotated[str, Form()],
+        index_name: Annotated[str, Form()] = None,
+        options: Annotated[str, Form()] = None,
+        file: UploadFile = File(None)
+        ):
+    query = 'retrieve ' + fields
+    query_types = types
 
-    query_inputs_arr = [param.strip() for param in q.fields.split(',')]
+    query_inputs_arr = [param.strip() for param in fields.split(',')]
     query_types_arr = [param.strip() for param in query_types.split(',')]
 
     try:
-        answer = run_from_api(q.plugin, query_inputs_arr, query_types_arr, query, False)
+        answer = await run_from_api_engine(agent, query_inputs_arr, query_types_arr, query, index_name, options, file,
+                                           False)
     except ValueError as e:
-        answer = '{"answer": "Invalid plugin name"}'
+        raise HTTPException(status_code=418, detail=str(e))
 
-    answer = json.loads(answer)
+    if isinstance(answer, (str, bytes, bytearray)):
+        answer = json.loads(answer)
+
+    return {"message": answer}
+
+
+@app.post("/api/v1/sparrow-llm/ingest", tags=["LLM Ingest"])
+async def ingest(
+        agent: Annotated[str, Form()],
+        index_name: Annotated[str, Form()],
+        file: UploadFile = File()
+        ):
+    try:
+        answer = await run_from_api_ingest(agent, index_name, file, False)
+    except ValueError as e:
+        raise HTTPException(status_code=418, detail=str(e))
+
+    if isinstance(answer, (str, bytes, bytearray)):
+        answer = json.loads(answer)
 
     return {"message": answer}
 
 
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    parser = argparse.ArgumentParser(description="Run FastAPI App")
+    parser.add_argument("-p", "--port", type=int, default=8000, help="Port to run the FastAPI app on")
+    args = parser.parse_args()
 
-# run the app with: python api.py
+    uvicorn.run("api:app", host="0.0.0.0", port=args.port, reload=True)
+
+# run the app with: python api.py --port 8000
 # go to http://127.0.0.1:8000/api/v1/sparrow-llm/docs to see the Swagger UI
